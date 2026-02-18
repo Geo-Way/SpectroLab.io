@@ -213,19 +213,18 @@
 </head>
 <body class="bg-gray-900 text-gray-200 font-sans antialiased">
 
-<!-- Barra de navegación fija con selector de idioma -->
-<nav class="navbar py-2 px-3 flex items-center justify-between flex-nowrap gap-1 sm:gap-2">
-    <div class="flex items-center space-x-1 sm:space-x-3 min-w-0">
-        <img src="img/LOGO.png" alt="EspectroLab" class="h-6 sm:h-8 w-auto flex-shrink-0" onerror="this.style.display='none'">
+<!-- Barra de navegación fija con selector de idioma -->    
+<nav class="navbar py-2 px-3 flex items-center justify-between">
+    <div class="flex items-center gap-1 sm:gap-2 min-w-0">
+        <img src="img/LOGO.png" alt="EspectroLab" class="h-7 sm:h-9 w-auto flex-shrink-0" onerror="this.style.display='none'">
         <span class="text-rose-400 font-mono text-base sm:text-xl font-light truncate">
             <span class="hidden sm:inline">🛰️</span> EspectroLab
         </span>
     </div>
-    <div class="flex items-center space-x-2 sm:space-x-4 flex-nowrap">
-        <a href="index.html" class="text-rose-300 border-b-2 border-rose-500 pb-1 text-xs sm:text-sm whitespace-nowrap" data-i18n="nav.firmas">Firmas</a>
-        <a href="ndvi.html" class="text-gray-300 hover:text-rose-300 transition text-xs sm:text-sm whitespace-nowrap" data-i18n="nav.ndvi">NDVI</a>
-        <!-- Selector de idioma compacto -->
-        <select id="lang-select" class="bg-gray-800 text-white border border-gray-600 rounded px-1 py-0.5 text-xs sm:px-2 sm:py-1 sm:text-sm">
+    <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+        <a href="index.html" class="text-rose-300 border-b-2 border-rose-500 pb-0.5 text-sm sm:text-base whitespace-nowrap" data-i18n="nav.firmas">Firmas</a>
+        <a href="ndvi.html" class="text-gray-300 hover:text-rose-300 transition text-sm sm:text-base whitespace-nowrap" data-i18n="nav.ndvi">NDVI</a>
+        <select id="lang-select" class="bg-gray-800 text-white border border-gray-600 rounded px-1.5 py-1 text-sm">
             <option value="es" selected>🇪🇸</option>
             <option value="en">🇬🇧</option>
             <option value="de">🇩🇪</option>
