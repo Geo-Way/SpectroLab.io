@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>🔥 PyroLab · NDVI e Incendios Forestales</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+    <link rel="manifest" href="img/site.webmanifest">
+    <link rel="shortcut icon" href="img/favicon.ico">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <style>
+        .canvas-container { position: relative; display: inline-block; }
+        .band-canvas, .ndvi-canvas {
+            border: 2px solid #334155;
+            border-radius: 0.5rem;
+            background-color: #1e293b;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+        .ndvi-canvas { border-color: #f97316; }
+        .slider-value {
+            font-family: monospace;
+            background: #0f172a;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid #f97316;
+            color: #fdba74;
+        }
+        .cors-warning {
+            background-color: #fef9c3;
+            color: #854d0e;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #facc15;
+            display: none;
+        }
+        #videoCam {
+            border-radius: 0.5rem;
+            border: 2px solid #f97316;
+            background: #0f172a;
+            max-width: 100%;
+        }
+        .legend-bar {
+            position: relative;
+            width: 100%;
+            height: 2rem;
+            background: linear-gradient(to right, #b91c1c, #fbbf24, #16a34a);
+            border-radius: 9999px;
+            border: 1px solid #4b5563;
+        }
+        .legend-marker {
+            position: absolute;
+            top: -0.25rem;
+            width: 0;
+            height: 0;
+            border-left: 0.75rem solid transparent;
+            border-right: 0.75rem solid transparent;
+            border-top: 1rem solid #111827;
+            transform: translateX(-50%);
+            transition: left 0.1s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.25rem;
+        }
+        /* Barra de navegación fija */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(8px);
+            background-color: rgba(31, 41, 55, 0.9);
+            border-bottom: 1px solid #374151;
+        }
+        /* Selector de idioma */
+        .lang-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid #4b5563;
+            color: #d1d5db;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lang-btn.active {
+            background: #f97316;
+            border-color: #f97316;
+            color: white;
+        }
+        .lang-btn:hover {
+            background: #4b5563;
+            color: white;
+        }
+        /* Footer */
+        .footer {
+            background-color: #1e293b;
+            border-top: 1px solid #334155;
+            padding: 2rem 1rem;
+            margin-top: 2rem;
+        }
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+        .footer-text {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            flex: 2;
+            min-width: 250px;
+        }
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        .footer-links a {
+            color: #d1d5db;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover {
+            color: #f97316;
+        }
+        .social-icons a {
+            margin-left: 1rem;
+            font-size: 1.2rem;
+            color: #9ca3af;
+        }
+        .social-icons a:hover {
+            color: #f97316;
+        }
+        /* Texto de presentación GeoWay */
+        .geoway-intro {
+            background: linear-gradient(145deg, #1f2937, #111827);
+            border-left: 4px solid #f97316;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+        }
+        .geoway-intro h2 {
+            color: #fdba74;
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+        }
+        .geoway-intro p {
+            color: #d1d5db;
+            margin-bottom: 0.5rem;
+        }
+        .geoway-intro a {
+            color: #f97316;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 font-sans antialiased">
+
+    <!-- Barra de navegación fija con selector de idioma -->
+    <nav class="navbar py-3 px-6 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <img src="img/LOGO.png" alt="PyroLab" class="h-10 w-auto" onerror="this.style.display='none'">
+            <span class="text-orange-400 font-mono text-xl font-light">🔥 PyroLab</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <a href="index.html" class="text-gray-300 hover:text-orange-300 transition" data-i18n="nav.firmas">Firma Espectral</a>
+            <a href="ndvi.html" class="text-orange-300 border-b-2 border-orange-500 pb-1" data-i18n="nav.ndvi">NDVI</a>
+            <!-- Selector de idioma -->
+            <div class="lang-selector">
+                <button class="lang-btn active" data-lang="es">ES</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+                <button class="lang-btn" data-lang="de">DE</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Aviso CORS -->
+        <div id="corsWarning" class="cors-warning mb-4">
+            ⚠️ Las imágenes no pueden cargarse correctamente porque el archivo se abrió directamente desde el disco.
+            Para que funcione, <strong>sirve la página con un servidor local</strong> (ej: python -m http.server 8000).
+        </div>
+
+        <!-- Bloque de presentación GeoWay -->
+        <div class="geoway-intro" id="geowayIntro">
+            <h2 data-i18n="intro.title">🌍 EspectroLab / PyroLab — Un proyecto de GeoWay</h2>
+            <p data-i18n="intro.p1">Esta aplicación forma parte del <strong>Laboratorio Geoespacial de GeoWay</strong>, un espacio de innovación dedicado a explorar y construir soluciones educativas con tecnologías geoespaciales. Nuestro objetivo es acercar conceptos complejos —como las firmas espectrales o el índice NDVI— a estudiantes y profesionales mediante herramientas interactivas e intuitivas.</p>
+            <p data-i18n="intro.p2">A través de la experimentación visual y el aprendizaje práctico, buscamos inspirar nuevas formas de entender y aplicar la teledetección en la gestión del territorio, la respuesta a emergencias y el estudio del medio ambiente.</p>
+            <p><span data-i18n="intro.tagline">Explorando ideas, construyendo soluciones.</span> <em>Exploring ideas, building solutions.</em> — <a href="https://geo-way.github.io/GeoWay.io/blog.html" target="_blank">GeoWay Geospatial Lab</a></p>
+        </div>
+
+        <!-- Bloque pedagógico mejorado con el nuevo texto introductorio -->
+        <div class="bg-gradient-to-r from-orange-900/30 to-amber-900/30 p-6 rounded-xl border border-orange-700 mb-8">
+            <h1 class="text-3xl font-light text-orange-300 mb-4" data-i18n="ndvi.title">🌲 NDVI: el "termómetro" del combustible</h1>
+            <div class="space-y-4 text-gray-300">
+                <p data-i18n="ndvi.intro1">Uno de los usos más frecuentes de las imágenes satelitales es obtener información sobre la cobertura terrestre. Propiedades como el estado de la vegetación, contenido de clorofila, agua o características estructurales están implícitas en los valores de reflectancia registrados por el sensor.</p>
+                <p data-i18n="ndvi.intro2">Para extraer esta información se emplean índices espectrales, métodos empírico-estadísticos que combinan longitudes de onda específicas sensibles a determinados parámetros biofísicos.</p>
+                <p data-i18n="ndvi.intro3">Un ejemplo ampliamente utilizado es el NDVI (Índice de Vegetación Normalizado). Este índice combina dos regiones del espectro:</p>
+                <ul class="list-disc list-inside ml-4">
+                    <li><span class="text-red-400" data-i18n="ndvi.red">🔴 Rojo (R): la clorofila absorbe fuertemente la radiación.</span></li>
+                    <li><span class="text-green-400" data-i18n="ndvi.nir">🌿 Infrarrojo cercano (NIR): la estructura interna de la hoja genera alta reflectancia.</span></li>
+                </ul>
+                <p data-i18n="ndvi.conclusion">Cuanto más saludable es la vegetación, mayor es la diferencia entre ambas respuestas espectrales.</p>
+                <div class="bg-gray-800/70 p-4 rounded-lg border border-gray-700 mt-4">
+                    <p class="font-semibold text-orange-300" data-i18n="ndvi.analogy">🌲 NDVI: el “termómetro” del combustible</p>
+                    <p data-i18n="ndvi.analogyText">Una planta sana absorbe la luz roja para la fotosíntesis y refleja intensamente el NIR. Una planta seca o estresada refleja menos NIR y más en la región roja. El NDVI cuantifica esta diferencia y permite estimar el vigor de la vegetación. En gestión de incendios, se utiliza como indicador indirecto del estado hídrico y de la presencia de combustible fino vivo.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video explicativo -->
+        <div class="mb-8 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+            <h2 class="text-xl text-orange-300 mb-3" data-i18n="video.title">📽️ Explicación del método</h2>
+            <video src="img/index_.mp4" controls class="w-full max-w-2xl mx-auto rounded-lg" onerror="this.style.display='none'; document.getElementById('videoFallback').style.display='block'">
+                Tu navegador no soporta el elemento de video.
+            </video>
+            <div id="videoFallback" class="hidden text-center text-gray-500 p-4 border border-dashed border-gray-600 rounded-lg">
+                🎥 El video <code>img/index_.mp4</code> no se encontró.
+            </div>
+        </div>
+
+        <!-- Panel de captura -->
+        <div class="bg-gray-800/70 p-5 rounded-xl border border-orange-700 mb-8">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <div class="camera-preview">
+                        <video id="videoCam" autoplay playsinline class="w-full bg-gray-950 rounded-lg border border-orange-600"></video>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <button id="startCamera" class="bg-orange-800 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-mono" data-i18n="camera.start">📸 Activar cámara</button>
+                        <button id="snapshotBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-mono" data-i18n="camera.capture">⚡ Capturar</button>
+                        <button id="stopCamera" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm border border-gray-600" data-i18n="camera.stop">⏹️ Detener</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2" data-i18n="camera.orUpload">O sube una imagen:</p>
+                    <input type="file" id="fileInput" accept="image/*" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-900 file:text-orange-200 hover:file:bg-orange-800">
+                    <button id="loadExampleBtn" class="mt-3 bg-amber-800/50 hover:bg-amber-700/70 text-amber-200 px-4 py-2 rounded-lg text-sm border border-amber-700 flex items-center gap-2">
+                        🌿 <span data-i18n="camera.loadExample">Usar ejemplo (carpeta img/)</span>
+                    </button>
+                </div>
+                <div class="bg-gray-900/70 p-4 rounded-lg border border-gray-700 text-sm">
+                    <p class="font-semibold text-orange-300 mb-2" data-i18n="usage.title">🧪 Modo de uso:</p>
+                    <ul class="list-disc list-inside text-gray-300 space-y-1">
+                        <li data-i18n="usage.step1">Carga una imagen (cámara, archivo o ejemplo).</li>
+                        <li data-i18n="usage.step2">Se generan las bandas <span class="text-red-400">Rojo</span> y <span class="text-purple-400">NIR</span>.</li>
+                        <li data-i18n="usage.step3">Mueve el ratón sobre cualquier banda: el cursor se sincroniza en las tres ventanas.</li>
+                        <li data-i18n="usage.step4">El marcador negro en la barra indica el valor NDVI del punto.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tres ventanas -->
+        <div class="grid md:grid-cols-3 gap-4 mb-6">
+            <!-- Rojo -->
+            <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-700">
+                <label class="text-sm font-medium text-red-300 uppercase tracking-wider" data-i18n="bands.red">Banda Rojo (R)</label>
+                <canvas id="canvasRed" class="band-canvas w-full mt-2"></canvas>
+                <div class="flex items-center gap-2 mt-3">
+                    <input type="range" id="sliderRed" min="0" max="10" step="0.1" value="0" class="w-full accent-orange-500">
+                    <span id="valRed" class="slider-value text-sm w-14 text-center">0.0</span>
+                </div>
+            </div>
+            <!-- NIR -->
+            <div class="bg-gray-800/50 p-3 rounded-xl border border-gray-700">
+                <label class="text-sm font-medium text-purple-300 uppercase tracking-wider" data-i18n="bands.nir">Banda NIR</label>
+                <canvas id="canvasNir" class="band-canvas w-full mt-2"></canvas>
+                <div class="flex items-center gap-2 mt-3">
+                    <input type="range" id="sliderNir" min="0" max="10" step="0.1" value="0" class="w-full accent-orange-500">
+                    <span id="valNir" class="slider-value text-sm w-14 text-center">0.0</span>
+                </div>
+            </div>
+            <!-- NDVI -->
+            <div class="bg-gray-800/50 p-3 rounded-xl border border-orange-700">
+                <label class="text-sm font-medium text-orange-300 uppercase tracking-wider" data-i18n="bands.ndvi">Imagen NDVI</label>
+                <canvas id="canvasNdvi" class="ndvi-canvas w-full mt-2"></canvas>
+                <div class="mt-2 text-xs text-gray-400 text-center">
+                    NDVI = (NIR - R) / (NIR + R)
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de leyenda -->
+        <div class="mb-6 bg-gray-800/30 p-4 rounded-xl border border-gray-700">
+            <div class="legend-bar" id="legendBar">
+                <div class="legend-marker" id="legendMarker"></div>
+            </div>
+            <div class="legend-labels">
+                <span data-i18n="legend.negative">-1 (quemado/agua)</span>
+                <span data-i18n="legend.zero">0 (suelo)</span>
+                <span data-i18n="legend.positive">+1 (vegetación sana)</span>
+            </div>
+            <div class="text-center mt-2 text-sm">
+                <span data-i18n="cursor.ndvi">NDVI bajo el cursor:</span> <span id="ndviCursorDisplay" class="text-orange-300 font-mono">0.00</span>
+            </div>
+        </div>
+
+        <!-- Tabla visual -->
+        <div class="bg-gray-800/70 p-4 rounded-xl border border-gray-700 mb-6">
+            <h3 class="text-orange-300 font-mono text-lg mb-2" data-i18n="interpretation.title">Interpretación para incendios</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div class="bg-green-900/30 p-3 rounded-lg border border-green-700">
+                    <div class="font-bold text-green-400" data-i18n="interpretation.high">≥ 0.6</div>
+                    <div data-i18n="interpretation.highDesc">Vegetación densa y húmeda</div>
+                    <div class="text-gray-400 text-xs" data-i18n="interpretation.highFire">Barrera natural, fuego lento</div>
+                </div>
+                <div class="bg-amber-900/30 p-3 rounded-lg border border-amber-700">
+                    <div class="font-bold text-amber-400" data-i18n="interpretation.medium">0.2 – 0.5</div>
+                    <div data-i18n="interpretation.mediumDesc">Matorral seco / pasto</div>
+                    <div class="text-gray-400 text-xs" data-i18n="interpretation.mediumFire">Combustible disponible, alta inflamabilidad</div>
+                </div>
+                <div class="bg-red-900/30 p-3 rounded-lg border border-red-700">
+                    <div class="font-bold text-red-400" data-i18n="interpretation.low">< 0.2</div>
+                    <div data-i18n="interpretation.lowDesc">Suelo desnudo / quemado</div>
+                    <div class="text-gray-400 text-xs" data-i18n="interpretation.lowFire">Sin combustible, cortafuegos natural</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <img src="img/Logo5.png" alt="DEULCHALEX Logo" class="h-12 w-auto" onerror="this.style.display='none'">
+            <div class="footer-text">
+                <p data-i18n="footer.copyright">© 2024 GEOWAY</p>
+                <p data-i18n="footer.rights">Todos los derechos de contenido educativo pertenecen a GEOWAY. Plataforma con fines educativos.</p>
+            </div>
+            <div class="footer-links">
+                <a href="#" data-i18n="footer.about"><i class="fas fa-info-circle"></i> Acerca de</a>
+                <a href="#" data-i18n="footer.tips"><i class="fas fa-lightbulb"></i> Consejos</a>
+                <a href="#" data-i18n="footer.faq"><i class="fas fa-question-circle"></i> FAQ</a>
+                <a href="https://calendly.com/alexanderariza/new-meeting" target="_blank" data-i18n="footer.contact"><i class="fas fa-envelope"></i> Contacto</a>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/sharer/sharer.php?u=https://tudominio.github.io/endmember/ndvi.html" target="_blank"><i class="fab fa-facebook"></i></a>
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://tudominio.github.io/endmember/ndvi.html" target="_blank"><i class="fab fa-linkedin"></i></a>
+                    <a href="https://twitter.com/intent/tweet?url=https://tudominio.github.io/endmember/ndvi.html&text=Explora%20el%20NDVI%20y%20su%20relación%20con%20incendios%20forestales" target="_blank"><i class="fab fa-x-twitter"></i></a>
+                    <a href="https://www.instagram.com/" target="_blank"><i class="fab fa-instagram"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        (function() {
+            // Detectar file://
+            if (window.location.protocol === 'file:') {
+                document.getElementById('corsWarning').style.display = 'block';
+            }
+
+            // --- Traducciones ---
+            const translations = {
+                es: {
+                    'nav.firmas': 'Firma Espectral',
+                    'nav.ndvi': 'NDVI',
+                    'intro.title': '🌍 EspectroLab / PyroLab — Un proyecto de GeoWay',
+                    'intro.p1': 'Esta aplicación forma parte del <strong>Laboratorio Geoespacial de GeoWay</strong>, un espacio de innovación dedicado a explorar y construir soluciones educativas con tecnologías geoespaciales. Nuestro objetivo es acercar conceptos complejos —como las firmas espectrales o el índice NDVI— a estudiantes y profesionales mediante herramientas interactivas e intuitivas.',
+                    'intro.p2': 'A través de la experimentación visual y el aprendizaje práctico, buscamos inspirar nuevas formas de entender y aplicar la teledetección en la gestión del territorio, la respuesta a emergencias y el estudio del medio ambiente.',
+                    'intro.tagline': 'Explorando ideas, construyendo soluciones.',
+                    'ndvi.title': '🌲 NDVI: el "termómetro" del combustible',
+                    'ndvi.intro1': 'Uno de los usos más frecuentes de las imágenes satelitales es obtener información sobre la cobertura terrestre. Propiedades como el estado de la vegetación, contenido de clorofila, agua o características estructurales están implícitas en los valores de reflectancia registrados por el sensor.',
+                    'ndvi.intro2': 'Para extraer esta información se emplean índices espectrales, métodos empírico-estadísticos que combinan longitudes de onda específicas sensibles a determinados parámetros biofísicos.',
+                    'ndvi.intro3': 'Un ejemplo ampliamente utilizado es el NDVI (Índice de Vegetación Normalizado). Este índice combina dos regiones del espectro:',
+                    'ndvi.red': '🔴 Rojo (R): la clorofila absorbe fuertemente la radiación.',
+                    'ndvi.nir': '🌿 Infrarrojo cercano (NIR): la estructura interna de la hoja genera alta reflectancia.',
+                    'ndvi.conclusion': 'Cuanto más saludable es la vegetación, mayor es la diferencia entre ambas respuestas espectrales.',
+                    'ndvi.analogy': '🌲 NDVI: el “termómetro” del combustible',
+                    'ndvi.analogyText': 'Una planta sana absorbe la luz roja para la fotosíntesis y refleja intensamente el NIR. Una planta seca o estresada refleja menos NIR y más en la región roja. El NDVI cuantifica esta diferencia y permite estimar el vigor de la vegetación. En gestión de incendios, se utiliza como indicador indirecto del estado hídrico y de la presencia de combustible fino vivo.',
+                    'video.title': '📽️ Explicación del método',
+                    'camera.start': '📸 Activar cámara',
+                    'camera.capture': '⚡ Capturar',
+                    'camera.stop': '⏹️ Detener',
+                    'camera.orUpload': 'O sube una imagen:',
+                    'camera.loadExample': 'Usar ejemplo (carpeta img/)',
+                    'usage.title': '🧪 Modo de uso:',
+                    'usage.step1': 'Carga una imagen (cámara, archivo o ejemplo).',
+                    'usage.step2': 'Se generan las bandas <span class="text-red-400">Rojo</span> y <span class="text-purple-400">NIR</span>.',
+                    'usage.step3': 'Mueve el ratón sobre cualquier banda: el cursor se sincroniza en las tres ventanas.',
+                    'usage.step4': 'El marcador negro en la barra indica el valor NDVI del punto.',
+                    'bands.red': 'Banda Rojo (R)',
+                    'bands.nir': 'Banda NIR',
+                    'bands.ndvi': 'Imagen NDVI',
+                    'legend.negative': '-1 (quemado/agua)',
+                    'legend.zero': '0 (suelo)',
+                    'legend.positive': '+1 (vegetación sana)',
+                    'cursor.ndvi': 'NDVI bajo el cursor:',
+                    'interpretation.title': 'Interpretación para incendios',
+                    'interpretation.high': '≥ 0.6',
+                    'interpretation.highDesc': 'Vegetación densa y húmeda',
+                    'interpretation.highFire': 'Barrera natural, fuego lento',
+                    'interpretation.medium': '0.2 – 0.5',
+                    'interpretation.mediumDesc': 'Matorral seco / pasto',
+                    'interpretation.mediumFire': 'Combustible disponible, alta inflamabilidad',
+                    'interpretation.low': '< 0.2',
+                    'interpretation.lowDesc': 'Suelo desnudo / quemado',
+                    'interpretation.lowFire': 'Sin combustible, cortafuegos natural',
+                    'footer.copyright': '© 2024 GEOWAY',
+                    'footer.rights': 'Todos los derechos de contenido educativo pertenecen a GEOWAY. Plataforma con fines educativos.',
+                    'footer.about': 'Acerca de',
+                    'footer.tips': 'Consejos',
+                    'footer.faq': 'FAQ',
+                    'footer.contact': 'Contacto',
+                },
+                en: {
+                    'nav.firmas': 'Spectral Signature',
+                    'nav.ndvi': 'NDVI',
+                    'intro.title': '🌍 EspectroLab / PyroLab — A GeoWay Project',
+                    'intro.p1': 'This application is part of the <strong>GeoWay Geospatial Lab</strong>, an innovation space dedicated to exploring and building educational solutions with geospatial technologies. Our goal is to bring complex concepts—such as spectral signatures or the NDVI index—to students and professionals through interactive and intuitive tools.',
+                    'intro.p2': 'Through visual experimentation and hands-on learning, we aim to inspire new ways of understanding and applying remote sensing in land management, emergency response, and environmental studies.',
+                    'intro.tagline': 'Exploring ideas, building solutions.',
+                    'ndvi.title': '🌲 NDVI: the "fuel thermometer"',
+                    'ndvi.intro1': 'One of the most frequent uses of satellite images is to obtain information about land cover. Properties such as vegetation status, chlorophyll content, water content, or structural characteristics are implicit in the reflectance values recorded by the sensor.',
+                    'ndvi.intro2': 'To extract this information, spectral indices are used, empirical-statistical methods that combine specific wavelengths sensitive to certain biophysical parameters.',
+                    'ndvi.intro3': 'A widely used example is the NDVI (Normalized Difference Vegetation Index). This index combines two spectral regions:',
+                    'ndvi.red': '🔴 Red (R): chlorophyll strongly absorbs radiation.',
+                    'ndvi.nir': '🌿 Near-infrared (NIR): the internal structure of the leaf generates high reflectance.',
+                    'ndvi.conclusion': 'The healthier the vegetation, the greater the difference between these two spectral responses.',
+                    'ndvi.analogy': '🌲 NDVI: the “fuel thermometer”',
+                    'ndvi.analogyText': 'A healthy plant absorbs red light for photosynthesis and strongly reflects NIR. A dry or stressed plant reflects less NIR and more in the red region. NDVI quantifies this difference and allows estimating vegetation vigor. In fire management, it is used as an indirect indicator of water status and the presence of fine live fuel.',
+                    'video.title': '📽️ Method explanation',
+                    'camera.start': '📸 Start camera',
+                    'camera.capture': '⚡ Capture',
+                    'camera.stop': '⏹️ Stop',
+                    'camera.orUpload': 'Or upload an image:',
+                    'camera.loadExample': 'Use example (img folder)',
+                    'usage.title': '🧪 How to use:',
+                    'usage.step1': 'Load an image (camera, file or example).',
+                    'usage.step2': 'Bands <span class="text-red-400">Red</span> and <span class="text-purple-400">NIR</span> are generated.',
+                    'usage.step3': 'Move the mouse over any band: the cursor is synchronized in the three windows.',
+                    'usage.step4': 'The black marker on the bar indicates the NDVI value of the point.',
+                    'bands.red': 'Red Band (R)',
+                    'bands.nir': 'NIR Band',
+                    'bands.ndvi': 'NDVI Image',
+                    'legend.negative': '-1 (burnt/water)',
+                    'legend.zero': '0 (soil)',
+                    'legend.positive': '+1 (healthy vegetation)',
+                    'cursor.ndvi': 'NDVI under cursor:',
+                    'interpretation.title': 'Interpretation for wildfires',
+                    'interpretation.high': '≥ 0.6',
+                    'interpretation.highDesc': 'Dense and humid forest',
+                    'interpretation.highFire': 'Natural barrier, slow fire',
+                    'interpretation.medium': '0.2 – 0.5',
+                    'interpretation.mediumDesc': 'Dry shrub / grass',
+                    'interpretation.mediumFire': 'Available fuel, high flammability',
+                    'interpretation.low': '< 0.2',
+                    'interpretation.lowDesc': 'Bare soil / burnt',
+                    'interpretation.lowFire': 'No fuel, natural firebreak',
+                    'footer.copyright': '© 2024 GEOWAY',
+                    'footer.rights': 'All educational content rights belong to GEOWAY. Platform for educational purposes.',
+                    'footer.about': 'About',
+                    'footer.tips': 'Tips',
+                    'footer.faq': 'FAQ',
+                    'footer.contact': 'Contact',
+                },
+                de: {
+                    'nav.firmas': 'Spektrale Signatur',
+                    'nav.ndvi': 'NDVI',
+                    'intro.title': '🌍 EspectroLab / PyroLab — Ein GeoWay-Projekt',
+                    'intro.p1': 'Diese Anwendung ist Teil des <strong>GeoWay Geospatial Lab</strong>, einem Innovationsraum, der sich der Erforschung und Entwicklung von Bildungs-lösungen mit geodätischen Technologien widmet. Unser Ziel ist es, komplexe Konzepte wie spektrale Signaturen oder den NDVI-Index Schülern und Fachleuten durch interaktive und intuitive Werkzeuge näherzubringen.',
+                    'intro.p2': 'Durch visuelle Experimente und praktisches Lernen möchten wir neue Wege inspirieren, Fernerkundung in der Landverwaltung, Notfallhilfe und Umweltstudien zu verstehen und anzuwenden.',
+                    'intro.tagline': 'Ideen erforschen, Lösungen bauen.',
+                    'ndvi.title': '🌲 NDVI: das "Kraftstoff-Thermometer"',
+                    'ndvi.intro1': 'Eine der häufigsten Anwendungen von Satellitenbildern ist die Gewinnung von Informationen über die Landbedeckung. Eigenschaften wie Vegetationszustand, Chlorophyllgehalt, Wassergehalt oder strukturelle Merkmale sind in den vom Sensor aufgezeichneten Reflexionswerten enthalten.',
+                    'ndvi.intro2': 'Um diese Informationen zu extrahieren, werden spektrale Indizes verwendet, empirisch-statistische Methoden, die bestimmte Wellenlängen kombinieren, die für bestimmte biophysikalische Parameter empfindlich sind.',
+                    'ndvi.intro3': 'Ein weit verbreitetes Beispiel ist der NDVI (Normalisierter differentieller Vegetationsindex). Dieser Index kombiniert zwei Spektralbereiche:',
+                    'ndvi.red': '🔴 Rot (R): Chlorophyll absorbiert Strahlung stark.',
+                    'ndvi.nir': '🌿 Nahes Infrarot (NIR): Die innere Struktur des Blattes erzeugt hohe Reflexion.',
+                    'ndvi.conclusion': 'Je gesünder die Vegetation, desto größer der Unterschied zwischen diesen beiden spektralen Antworten.',
+                    'ndvi.analogy': '🌲 NDVI: das “Kraftstoff-Thermometer”',
+                    'ndvi.analogyText': 'Eine gesunde Pflanze absorbiert rotes Licht für die Photosynthese und reflektiert NIR stark. Eine trockene oder gestresste Pflanze reflektiert weniger NIR und mehr im roten Bereich. Der NDVI quantifiziert diesen Unterschied und ermöglicht die Abschätzung der Vitalität der Vegetation. Im Brandmanagement wird er als indirekter Indikator für den Wasserzustand und das Vorhandensein von feinem, lebendigem Brennstoff verwendet.',
+                    'video.title': '📽️ Erklärung der Methode',
+                    'camera.start': '📸 Kamera starten',
+                    'camera.capture': '⚡ Aufnehmen',
+                    'camera.stop': '⏹️ Stopp',
+                    'camera.orUpload': 'Oder Bild hochladen:',
+                    'camera.loadExample': 'Beispiel verwenden (img-Ordner)',
+                    'usage.title': '🧪 Verwendung:',
+                    'usage.step1': 'Lade ein Bild (Kamera, Datei oder Beispiel).',
+                    'usage.step2': 'Die Bänder <span class="text-red-400">Rot</span> und <span class="text-purple-400">NIR</span> werden generiert.',
+                    'usage.step3': 'Bewege die Maus über ein Band: Der Cursor wird in den drei Fenstern synchronisiert.',
+                    'usage.step4': 'Die schwarze Markierung auf dem Balken zeigt den NDVI-Wert des Punktes an.',
+                    'bands.red': 'Rot-Band (R)',
+                    'bands.nir': 'NIR-Band',
+                    'bands.ndvi': 'NDVI-Bild',
+                    'legend.negative': '-1 (verbrannt/Wasser)',
+                    'legend.zero': '0 (Boden)',
+                    'legend.positive': '+1 (gesunde Vegetation)',
+                    'cursor.ndvi': 'NDVI unter Cursor:',
+                    'interpretation.title': 'Interpretation für Brände',
+                    'interpretation.high': '≥ 0.6',
+                    'interpretation.highDesc': 'Dichter und feuchter Wald',
+                    'interpretation.highFire': 'Natürliche Barriere, langsames Feuer',
+                    'interpretation.medium': '0.2 – 0.5',
+                    'interpretation.mediumDesc': 'Trockenes Gebüsch / Gras',
+                    'interpretation.mediumFire': 'Verfügbarer Brennstoff, hohe Entflammbarkeit',
+                    'interpretation.low': '< 0.2',
+                    'interpretation.lowDesc': 'Karger Boden / verbrannt',
+                    'interpretation.lowFire': 'Kein Brennstoff, natürliche Feuerschneise',
+                    'footer.copyright': '© 2024 GEOWAY',
+                    'footer.rights': 'Alle Bildungsinhalte gehören GEOWAY. Plattform zu Bildungszwecken.',
+                    'footer.about': 'Über',
+                    'footer.tips': 'Tipps',
+                    'footer.faq': 'FAQ',
+                    'footer.contact': 'Kontakt',
+                }
+            };
+
+            // Elementos con data-i18n
+            const i18nElements = document.querySelectorAll('[data-i18n]');
+
+            // Función para cambiar idioma
+            function setLanguage(lang) {
+                // Actualizar botones activos
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.lang === lang) {
+                        btn.classList.add('active');
+                    }
+                });
+
+                // Traducir elementos
+                i18nElements.forEach(el => {
+                    const key = el.dataset.i18n;
+                    if (translations[lang] && translations[lang][key]) {
+                        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                            el.placeholder = translations[lang][key];
+                        } else {
+                            el.innerHTML = translations[lang][key];
+                        }
+                    }
+                });
+
+                // Cambiar el atributo lang del HTML
+                document.documentElement.lang = lang;
+            }
+
+            // Event listeners para los botones de idioma
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const lang = e.target.dataset.lang;
+                    setLanguage(lang);
+                });
+            });
+
+            // Canvas
+            const canvasRed = document.getElementById('canvasRed');
+            const canvasNir = document.getElementById('canvasNir');
+            const canvasNdvi = document.getElementById('canvasNdvi');
+            const ctxRed = canvasRed.getContext('2d');
+            const ctxNir = canvasNir.getContext('2d');
+            const ctxNdvi = canvasNdvi.getContext('2d');
+
+            // Sliders
+            const sliderRed = document.getElementById('sliderRed');
+            const sliderNir = document.getElementById('sliderNir');
+            const spanRed = document.getElementById('valRed');
+            const spanNir = document.getElementById('valNir');
+
+            // Displays
+            const ndviCursorSpan = document.getElementById('ndviCursorDisplay');
+            const legendMarker = document.getElementById('legendMarker');
+
+            // Elementos de cámara
+            const video = document.getElementById('videoCam');
+            const startBtn = document.getElementById('startCamera');
+            const snapshotBtn = document.getElementById('snapshotBtn');
+            const stopBtn = document.getElementById('stopCamera');
+            const fileInput = document.getElementById('fileInput');
+            const loadExampleBtn = document.getElementById('loadExampleBtn');
+
+            // Variables para ImageData
+            let imgDataRed, imgDataNir, imgDataNdvi;
+            let canvasWidth = 0, canvasHeight = 0;
+
+            // Inicializar sliders
+            spanRed.textContent = sliderRed.value;
+            spanNir.textContent = sliderNir.value;
+
+            function actualizarMarcador(ndvi) {
+                let leftPercent = (ndvi + 1) / 2;
+                leftPercent = Math.min(1, Math.max(0, leftPercent));
+                legendMarker.style.left = (leftPercent * 100) + '%';
+            }
+
+            function actualizarImagenNDVI() {
+                if (!imgDataRed || !imgDataNir) return;
+                const w = imgDataRed.width;
+                const h = imgDataRed.height;
+                const dataRed = imgDataRed.data;
+                const dataNir = imgDataNir.data;
+                const dataNdvi = new Uint8ClampedArray(dataRed.length);
+
+                for (let i = 0; i < dataRed.length; i += 4) {
+                    const r = dataRed[i] / 255;
+                    const nir = dataNir[i] / 255;
+                    let ndvi = 0;
+                    if (nir + r > 0) {
+                        ndvi = (nir - r) / (nir + r);
+                    }
+                    const t = (ndvi + 1) / 2;
+                    const rCol = Math.floor(255 * (1 - t));
+                    const gCol = Math.floor(255 * t);
+                    const bCol = 0;
+                    dataNdvi[i] = rCol;
+                    dataNdvi[i+1] = gCol;
+                    dataNdvi[i+2] = bCol;
+                    dataNdvi[i+3] = 255;
+                }
+                imgDataNdvi = new ImageData(dataNdvi, w, h);
+                ctxNdvi.putImageData(imgDataNdvi, 0, 0);
+            }
+
+            function getReflectivity(imgData, x, y) {
+                if (!imgData) return 0;
+                const idx = (y * imgData.width + x) * 4;
+                return imgData.data[idx] / 25.5;
+            }
+
+            function dibujarCrosshair(ctx, x, y, color = 'rgba(255,255,255,0.8)') {
+                ctx.save();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, y + 0.5);
+                ctx.lineTo(ctx.canvas.width, y + 0.5);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x + 0.5, 0);
+                ctx.lineTo(x + 0.5, ctx.canvas.height);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function redrawAll() {
+                if (!imgDataRed) return;
+                ctxRed.putImageData(imgDataRed, 0, 0);
+                ctxNir.putImageData(imgDataNir, 0, 0);
+                ctxNdvi.putImageData(imgDataNdvi, 0, 0);
+            }
+
+            function actualizarCursor(x, y) {
+                if (!imgDataRed || x < 0 || y < 0 || x >= canvasWidth || y >= canvasHeight) return;
+
+                const rVal = getReflectivity(imgDataRed, x, y);
+                const nirVal = getReflectivity(imgDataNir, x, y);
+                const ndvi = (nirVal - rVal) / (nirVal + rVal + 1e-5);
+
+                ndviCursorSpan.textContent = ndvi.toFixed(2);
+                actualizarMarcador(ndvi);
+
+                redrawAll();
+                dibujarCrosshair(ctxRed, x, y, '#ff0000');
+                dibujarCrosshair(ctxNir, x, y, '#a78bfa');
+                dibujarCrosshair(ctxNdvi, x, y, '#f97316');
+            }
+
+            function onMouseMove(e) {
+                if (!imgDataRed) return;
+                const canvas = e.currentTarget;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                let x = Math.floor((e.clientX - rect.left) * scaleX);
+                let y = Math.floor((e.clientY - rect.top) * scaleY);
+                x = Math.min(Math.max(x, 0), canvas.width - 1);
+                y = Math.min(Math.max(y, 0), canvas.height - 1);
+                actualizarCursor(x, y);
+            }
+
+            canvasRed.addEventListener('mousemove', onMouseMove);
+            canvasNir.addEventListener('mousemove', onMouseMove);
+            canvasNdvi.addEventListener('mousemove', onMouseMove);
+
+            function clickHandler(e) {
+                if (!imgDataRed) return;
+                const canvas = e.currentTarget;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                let x = Math.floor((e.clientX - rect.left) * scaleX);
+                let y = Math.floor((e.clientY - rect.top) * scaleY);
+                x = Math.min(Math.max(x, 0), canvas.width - 1);
+                y = Math.min(Math.max(y, 0), canvas.height - 1);
+                const rVal = getReflectivity(imgDataRed, x, y);
+                const nirVal = getReflectivity(imgDataNir, x, y);
+                sliderRed.value = rVal.toFixed(1);
+                sliderNir.value = nirVal.toFixed(1);
+                spanRed.textContent = sliderRed.value;
+                spanNir.textContent = sliderNir.value;
+            }
+
+            canvasRed.addEventListener('click', clickHandler);
+            canvasNir.addEventListener('click', clickHandler);
+
+            function procesarImagen(redImg, nirImg) {
+                let w = redImg.naturalWidth || redImg.width;
+                let h = redImg.naturalHeight || redImg.height;
+                const maxDim = 400;
+                let scale = Math.min(maxDim / w, maxDim / h, 1);
+                w = Math.floor(w * scale);
+                h = Math.floor(h * scale);
+                canvasWidth = w;
+                canvasHeight = h;
+
+                [canvasRed, canvasNir, canvasNdvi].forEach(c => { c.width = w; c.height = h; });
+
+                ctxRed.drawImage(redImg, 0, 0, w, h);
+                ctxNir.drawImage(nirImg, 0, 0, w, h);
+
+                try {
+                    imgDataRed = ctxRed.getImageData(0, 0, w, h);
+                    imgDataNir = ctxNir.getImageData(0, 0, w, h);
+                } catch (e) {
+                    console.warn('CORS error');
+                    document.getElementById('corsWarning').style.display = 'block';
+                    return;
+                }
+
+                actualizarImagenNDVI();
+                sliderRed.value = 0; sliderNir.value = 0;
+                spanRed.textContent = '0.0'; spanNir.textContent = '0.0';
+                actualizarCursor(0, 0);
+            }
+
+            function generarNIRdesdeRGB(imgRGB) {
+                const canvas = document.createElement('canvas');
+                let w = imgRGB.naturalWidth || imgRGB.width;
+                let h = imgRGB.naturalHeight || imgRGB.height;
+                const maxDim = 400;
+                let scale = Math.min(maxDim / w, maxDim / h, 1);
+                w = Math.floor(w * scale);
+                h = Math.floor(h * scale);
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgRGB, 0, 0, w, h);
+                const data = ctx.getImageData(0, 0, w, h).data;
+                const nirData = new Uint8ClampedArray(data.length);
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i+1];
+                    const b = data[i+2];
+                    let nir = Math.min(255, Math.max(0, Math.floor((g + 255 - r) / 2)));
+                    nirData[i] = nir;
+                    nirData[i+1] = nir;
+                    nirData[i+2] = nir;
+                    nirData[i+3] = 255;
+                }
+                const nirImageData = new ImageData(nirData, w, h);
+                const nirCanvas = document.createElement('canvas');
+                nirCanvas.width = w; nirCanvas.height = h;
+                nirCanvas.getContext('2d').putImageData(nirImageData, 0, 0);
+                const nirImg = new Image();
+                nirImg.src = nirCanvas.toDataURL();
+                return nirImg;
+            }
+
+            function cargarEjemplo() {
+                const redImg = new Image();
+                redImg.crossOrigin = 'Anonymous';
+                redImg.onload = () => {
+                    const nirImg = new Image();
+                    nirImg.crossOrigin = 'Anonymous';
+                    nirImg.onload = () => {
+                        procesarImagen(redImg, nirImg);
+                    };
+                    nirImg.onerror = () => {
+                        console.warn('No se encontró nir.jpg, simulando desde visible.jpg');
+                        const visibleImg = new Image();
+                        visibleImg.crossOrigin = 'Anonymous';
+                        visibleImg.onload = () => {
+                            const nirSim = generarNIRdesdeRGB(visibleImg);
+                            nirSim.onload = () => procesarImagen(redImg, nirSim);
+                        };
+                        visibleImg.src = 'img/visible.jpg';
+                    };
+                    nirImg.src = 'img/nir.jpg';
+                };
+                redImg.onerror = () => {
+                    alert('No se pudo cargar red.jpg. Usando imagen sintética.');
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 400; canvas.height = 400;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#7f1d1d';
+                    ctx.fillRect(0, 0, 400, 400);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '20px monospace';
+                    ctx.fillText('rojo simulado', 100, 200);
+                    const img = new Image();
+                    img.src = canvas.toDataURL();
+                    img.onload = () => {
+                        const nirSim = new Image();
+                        nirSim.src = canvas.toDataURL();
+                        nirSim.onload = () => procesarImagen(img, nirSim);
+                    };
+                };
+                redImg.src = 'img/red.jpg';
+            }
+
+            // Cámara
+            let stream = null;
+            startBtn.addEventListener('click', async () => {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    video.srcObject = stream;
+                    video.play();
+                } catch (err) {
+                    alert('No se pudo acceder a la cámara: ' + err.message);
+                }
+            });
+            stopBtn.addEventListener('click', () => {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    video.srcObject = null;
+                }
+            });
+            snapshotBtn.addEventListener('click', () => {
+                if (!video.srcObject || !video.videoWidth) {
+                    alert('Activa la cámara primero.');
+                    return;
+                }
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                tempCanvas.getContext('2d').drawImage(video, 0, 0);
+                const img = new Image();
+                img.onload = () => {
+                    const nirSim = generarNIRdesdeRGB(img);
+                    nirSim.onload = () => procesarImagen(img, nirSim);
+                };
+                img.src = tempCanvas.toDataURL('image/jpeg');
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const nirSim = generarNIRdesdeRGB(img);
+                        nirSim.onload = () => procesarImagen(img, nirSim);
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            loadExampleBtn.addEventListener('click', () => {
+                cargarEjemplo();
+            });
+
+            // Inicializar con español por defecto
+            setLanguage('es');
+            cargarEjemplo();
+        })();
+    </script>
+</body>
+</html>
