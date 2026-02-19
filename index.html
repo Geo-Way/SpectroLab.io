@@ -217,19 +217,19 @@
 <nav class="navbar py-2 px-3 flex items-center justify-between gap-1">
     <!-- Lado izquierdo: logo + título -->
     <div class="flex items-center gap-2 min-w-0">
-        <img src="img/LOGO.png" alt="EspectroLab" class="h-8 w-auto flex-shrink-0" onerror="this.style.display='none'">
-        <span class="text-rose-400 font-mono text-lg font-light truncate">
+        <img src="img/LOGO.png" alt="EspectroLab" class="h-7 w-auto flex-shrink-0" onerror="this.style.display='none'">
+        <span class="text-rose-400 font-mono text-base sm:text-lg font-light truncate">
             <span class="hidden sm:inline">🛰️</span> EspectroLab
         </span>
     </div>
 
     <!-- Lado derecho: enlaces + selector -->
     <div class="flex items-center gap-2 flex-nowrap">
-        <a href="index.html" class="text-rose-300 border-b-2 border-rose-500 pb-1 text-sm whitespace-nowrap" data-i18n="nav.firmas">Firmas</a>
-        <a href="ndvi.html" class="text-gray-300 hover:text-rose-300 transition text-sm whitespace-nowrap" data-i18n="nav.ndvi">NDVI</a>
+        <a href="index.html" class="text-rose-300 border-b-2 border-rose-500 pb-0.5 text-xs sm:text-sm whitespace-nowrap" data-i18n="nav.firmas">Firmas</a>
+        <a href="ndvi.html" class="text-gray-300 hover:text-rose-300 transition text-xs sm:text-sm whitespace-nowrap" data-i18n="nav.ndvi">NDVI</a>
         
-        <!-- Selector de idioma con bandera + texto y ancho controlado -->
-        <select id="lang-select" class="bg-gray-800 text-white border border-gray-600 rounded-md px-2 py-1 text-sm w-auto min-w-[35px]">
+        <!-- Selector de idioma compacto con bandera + código -->
+        <select id="lang-select" class="bg-gray-800 text-white border border-gray-600 rounded-md px-1.5 py-1 text-xs sm:text-sm w-auto min-w-[70px] max-w-[90px]">
             <option value="es" selected>🇪🇸 ES</option>
             <option value="en">🇬🇧 EN</option>
             <option value="de">🇩🇪 DE</option>
